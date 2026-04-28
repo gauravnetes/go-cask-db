@@ -277,6 +277,60 @@ $ go run cmd/server/main.go
 2026/04/28 10:16:35 [Compactor] Disk space reclaimed: 2.1 MB
 ```
 
+### Interacting with the Engine via Telnet
+
+The server exposes a **text-based TCP protocol** accessible via telnet:
+
+```bash
+# Open a telnet connection to the server (default: localhost:8080)
+telnet localhost 8080
+
+# You should see:
+# Connected to localhost.
+# Connected to go-cask-db. Type a command (e.g., SET key value, GET key):
+```
+
+#### Available Commands
+
+| Command | Syntax | Description | Example |
+|---------|--------|-------------|---------|
+| **SET** | `SET <key> <value>` | Store a key-value pair | `SET user:123 "John Doe"` |
+| **GET** | `GET <key>` | Retrieve a value by key | `GET user:123` |
+| **COMPACT** | `COMPACT` | Trigger compaction cycle | `COMPACT` |
+| **PING** | `PING` | Health check | `PING` |
+| **EXIT/QUIT** | `EXIT` or `QUIT` | Close connection | `EXIT` |
+
+#### Example Session
+
+```
+Connected to go-cask-db. Type a command (e.g., SET key value, GET key):
+SET target "company"
+OK
+SET company "Google"
+OK
+SET position "Software Engineering Intern"
+OK
+GET target
+company
+GET company
+Google
+GET position
+Software Engineering Intern
+COMPACT
+OK: Compaction complete
+PING
+PONG
+EXIT
+Goodbye!
+```
+
+#### Under the Hood
+
+- **Multi-client Support:** Each client connection spawns a dedicated goroutine, allowing hundreds of concurrent users without blocking
+- **Binary Safety:** Internally, values are stored as raw bytes; the telnet interface handles string conversion
+- **Write-Through:** Every `SET` command is immediately written to the WAL before the MemTable is updated (durability guaranteed)
+- **Read Optimization:** `GET` commands follow the hierarchical lookup (MemTable → Newest SSTable → Older SSTables)
+
 ### Inspecting Database Files
 
 After running, inspect the `data/` directory:
